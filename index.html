@@ -115,7 +115,7 @@
     <script src="https://npmcdn.com/flatpickr/dist/l10n/th.js"></script>
     
     <script>
-        // === อัปเดตลิงก์ Web App API ใหม่ ===
+        // ลิงก์ Web App API
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxRiF23iz4an-0qHKo5UkhaQDIxZsM0ouAvlEljapMDc0hvV6L-l1eVwMbiPTNzYQu-yg/exec';
         
         let currentUser = null;
@@ -204,12 +204,11 @@
             const summaryDiv = document.getElementById('summary-section');
             let html = '';
             
-            // สรุปการลา 4 ประเภท
             const leaveTypes = ['ลาป่วย', 'ลากิจ', 'ลาคลอด', 'ลาพักผ่อน'];
             leaveTypes.forEach(type => {
                 let records = data[type] || [];
                 
-                // *** กรองเอาเฉพาะรายการที่ "ไม่มี" คำว่า ยกเลิก มาใช้คำนวณสรุป ***
+                // กรองรายการที่ไม่มียกเลิกมาสรุป
                 let validRecords = records.filter(r => {
                     let noteText = r.note ? r.note.toString().trim() : '';
                     return !noteText.includes('ยกเลิก');
@@ -231,7 +230,6 @@
                 </div>`;
             });
 
-            // สรุปสายและไม่สแกน
             const alertTypes = ['สาย', 'ไม่สแกน'];
             alertTypes.forEach(type => {
                 let records = data[type] || [];
@@ -310,7 +308,7 @@
         }
 
         function renderAttendanceTable() {
-            const tbody = document.getElementById(`tbody-6`); // index 6 คือ 'เวลาเข้างาน'
+            const tbody = document.getElementById(`tbody-6`); 
             if (!tbody) return;
 
             let displayData = currentLimit === 'ALL' ? attendanceData : attendanceData.slice(0, parseInt(currentLimit));
@@ -318,12 +316,44 @@
             if (displayData.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="2" class="text-center text-muted py-4"><i class="bi bi-inbox fs-3 d-block"></i> ไม่มีข้อมูล</td></tr>`;
             } else {
-                tbody.innerHTML = displayData.map(r => `
+                tbody.innerHTML = displayData.map(r => {
+                    
+                    // ระบบแยกเวลาและตรวจสอบเพื่อทำสีแดง
+                    let timeLines = r.time.split('\n');
+                    let timeHtml = timeLines.map(t => {
+                        let txt = t.trim();
+                        if (!txt) return '';
+                        
+                        let isRed = false;
+                        let match = txt.match(/(\d{1,2})[:\.](\d{2})/);
+                        if (match) {
+                            let h = parseInt(match[1], 10);
+                            let m = parseInt(match[2], 10);
+                            
+                            // เงื่อนไขเวลาเกิน (ช่วง 08:31-11:59, 16:31-19:59, 00:31-03:59)
+                            if ((h === 8 && m > 30) || (h > 8 && h <= 11)) {
+                                isRed = true;
+                            } else if ((h === 16 && m > 30) || (h > 16 && h <= 19)) {
+                                isRed = true;
+                            } else if ((h === 0 && m > 30) || (h > 0 && h <= 3)) {
+                                isRed = true;
+                            }
+                        }
+                        
+                        return isRed ? `<span class="text-danger fw-bold">${txt}</span>` : `<span class="text-success">${txt}</span>`;
+                    }).join('<br>');
+
+                    return `
                     <tr>
                         <td class="fw-bold text-dark">${r.date}</td>
-                        <td><span class="badge bg-success bg-opacity-10 text-success p-2">${r.time.replace(/\n/g, '<br>')}</span></td>
+                        <td>
+                            <div class="badge bg-success bg-opacity-10 p-2 text-start d-inline-block" style="font-size: 0.9rem; line-height: 1.5;">
+                                ${timeHtml}
+                            </div>
+                        </td>
                     </tr>
-                `).join('');
+                    `;
+                }).join('');
             }
         }
 
@@ -365,7 +395,6 @@
                                 tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4"><i class="bi bi-inbox fs-3 d-block"></i> ไม่มีข้อมูล</td></tr>`;
                             } else {
                                 tbody.innerHTML = records.map(r => {
-                                    // เช็คว่าหมายเหตุมีคำว่า ยกเลิก หรือไม่ เพื่อปรับสีแถวให้ดูรู้ว่าถูกยกเลิก
                                     let noteText = r.note ? r.note.toString() : '';
                                     let isCancelled = noteText.includes('ยกเลิก');
                                     let rowClass = isCancelled ? 'cancelled-row' : '';
