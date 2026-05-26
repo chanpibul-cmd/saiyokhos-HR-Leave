@@ -30,6 +30,7 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.03);
         }
         .summary-card:hover { transform: translateY(-2px); }
+        .cancelled-row { opacity: 0.5; background-color: #f1f3f5 !important; }
     </style>
 </head>
 <body>
@@ -51,9 +52,9 @@
                     </div>
 
                     <div class="form-check mb-4 bg-light p-3 rounded border border-light">
-                        <input class="form-check-input ms-1" type="checkbox" id="pdpa" required>
+                        <input class="form-check-input ms-1 mt-1" type="checkbox" id="pdpa" required>
                         <label class="form-check-label ms-2 text-muted" style="font-size: 0.85rem;" for="pdpa">
-                            <strong> ข้าพเจ้ายินยอมให้ใช้ข้อมูลส่วนบุคคลข้างต้น เพื่อการตรวจสอบข้อมูลวันลาต่างๆ การขาดงาน มาสาย </strong>
+                            <strong>ข้าพเจ้ายินยอมให้ใช้ข้อมูลส่วนบุคคลข้างต้น เพื่อการตรวจสอบข้อมูลวันลาต่างๆ การขาดงาน มาสาย</strong>
                         </label>
                     </div>
 
@@ -114,15 +115,15 @@
     <script src="https://npmcdn.com/flatpickr/dist/l10n/th.js"></script>
     
     <script>
-        // === นำ Web App URL มาใส่ที่นี่ ===
+        // === อัปเดตลิงก์ Web App API ใหม่ ===
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxRiF23iz4an-0qHKo5UkhaQDIxZsM0ouAvlEljapMDc0hvV6L-l1eVwMbiPTNzYQu-yg/exec';
         
         let currentUser = null;
-        let attendanceData = []; // เก็บข้อมูลเวลาเข้างานเพื่อทำหน้าที่แบ่งหน้า
-        let currentLimit = 25; // ค่าเริ่มต้นแถวเวลาเข้างาน
+        let attendanceData = []; 
+        let currentLimit = 25; 
         const sheets = ['ลาป่วย', 'ลากิจ', 'ลาคลอด', 'ลาพักผ่อน', 'สาย', 'ไม่สแกน', 'เวลาเข้างาน'];
 
-        // ตั้งค่าตัวเลือกวันที่ (เพิ่ม disableMobile เพื่อบังคับใช้ปฏิทินของ Flatpickr ใน Line)
+        // ตั้งค่าตัวเลือกวันที่ 
         flatpickr("#startDate", { 
             locale: "th", 
             dateFormat: "Y-m-d", 
@@ -137,12 +138,12 @@
 
         // ธีมสีสบายตา (Pastel)
         const themeColors = {
-            'ลาป่วย': { bg: '#e3f2fd', text: '#1565c0' }, // ฟ้าอ่อน
-            'ลากิจ': { bg: '#f3e5f5', text: '#6a1b9a' }, // ม่วงอ่อน
-            'ลาคลอด': { bg: '#fce4ec', text: '#ad1457' }, // ชมพูอ่อน
-            'ลาพักผ่อน': { bg: '#e8f5e9', text: '#2e7d32' }, // เขียวอ่อน
-            'สาย': { bg: '#fff3e0', text: '#e65100' }, // ส้มอ่อน
-            'ไม่สแกน': { bg: '#ffebee', text: '#c62828' } // แดงอ่อน
+            'ลาป่วย': { bg: '#e3f2fd', text: '#1565c0' }, 
+            'ลากิจ': { bg: '#f3e5f5', text: '#6a1b9a' }, 
+            'ลาคลอด': { bg: '#fce4ec', text: '#ad1457' }, 
+            'ลาพักผ่อน': { bg: '#e8f5e9', text: '#2e7d32' }, 
+            'สาย': { bg: '#fff3e0', text: '#e65100' }, 
+            'ไม่สแกน': { bg: '#ffebee', text: '#c62828' } 
         };
 
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -207,8 +208,15 @@
             const leaveTypes = ['ลาป่วย', 'ลากิจ', 'ลาคลอด', 'ลาพักผ่อน'];
             leaveTypes.forEach(type => {
                 let records = data[type] || [];
-                let count = records.length;
-                let days = records.reduce((sum, r) => sum + (parseFloat(r.total) || 0), 0);
+                
+                // *** กรองเอาเฉพาะรายการที่ "ไม่มี" คำว่า ยกเลิก มาใช้คำนวณสรุป ***
+                let validRecords = records.filter(r => {
+                    let noteText = r.note ? r.note.toString().trim() : '';
+                    return !noteText.includes('ยกเลิก');
+                });
+                
+                let count = validRecords.length;
+                let days = validRecords.reduce((sum, r) => sum + (parseFloat(r.total) || 0), 0);
                 let color = themeColors[type];
                 
                 html += `
@@ -348,7 +356,6 @@
                         
                         if (sheet === 'เวลาเข้างาน') {
                             attendanceData = records || [];
-                            // รีเซ็ต dropdown ให้กลับไปที่ค่า 25 ทุกครั้งที่ดึงข้อมูลใหม่
                             const limitSelect = document.getElementById('attendanceLimit');
                             if(limitSelect) limitSelect.value = "25";
                             currentLimit = 25; 
@@ -357,15 +364,23 @@
                             if (!records || records.length === 0) {
                                 tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4"><i class="bi bi-inbox fs-3 d-block"></i> ไม่มีข้อมูล</td></tr>`;
                             } else {
-                                tbody.innerHTML = records.map(r => `
-                                    <tr>
+                                tbody.innerHTML = records.map(r => {
+                                    // เช็คว่าหมายเหตุมีคำว่า ยกเลิก หรือไม่ เพื่อปรับสีแถวให้ดูรู้ว่าถูกยกเลิก
+                                    let noteText = r.note ? r.note.toString() : '';
+                                    let isCancelled = noteText.includes('ยกเลิก');
+                                    let rowClass = isCancelled ? 'cancelled-row' : '';
+                                    let badgeColor = isCancelled ? 'background-color: #dee2e6; color: #6c757d;' : `background-color: ${themeColors[sheet].bg}; color: ${themeColors[sheet].text};`;
+
+                                    return `
+                                    <tr class="${rowClass}">
                                         <td>${r.regDate}</td>
                                         <td class="fw-bold text-dark">${r.startDate}</td>
                                         <td class="fw-bold text-dark">${r.endDate}</td>
-                                        <td><span class="badge rounded-pill" style="background-color: ${themeColors[sheet].bg}; color: ${themeColors[sheet].text};">${r.total}</span></td>
-                                        <td class="text-muted small">${r.note || '-'}</td>
+                                        <td><span class="badge rounded-pill" style="${badgeColor}">${r.total}</span></td>
+                                        <td class="${isCancelled ? 'text-danger fw-bold' : 'text-muted small'}">${r.note || '-'}</td>
                                     </tr>
-                                `).join('');
+                                    `;
+                                }).join('');
                             }
                         }
                     });
